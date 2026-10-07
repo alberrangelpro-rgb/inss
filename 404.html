@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estudo em Voz</title>
+<script>
+  // Qualquer endereço desconhecido dentro do site volta para o app.
+  var base = location.pathname.replace(/\/[^\/]*$/, '/');
+  location.replace(base.endsWith('/inss/') || base === '/' ? base : '/inss/');
+</script>
+</head>
+<body style="font-family:system-ui;background:#0e5a4f;color:#fff;display:grid;place-items:center;height:100vh;margin:0">
+  <p>Abrindo o Estudo em Voz… <a style="color:#fde767" href="/inss/">toque aqui</a> se não abrir.</p>
+</body>
+</html>
