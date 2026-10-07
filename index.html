@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Estudo em Voz</title>
+<meta name="description" content="Leitor de PDF em voz alta para estudar para concursos: lê artigos, parágrafos e incisos com pausas e pronúncia corretas.">
+<meta name="theme-color" content="#0e5a4f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icone.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topo">
+    <div class="marca">
+      <svg class="marca-icone" viewBox="0 0 32 32" aria-hidden="true"><path d="M6 5h13l7 7v15H6z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M19 5v7h7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M11 17v5M14.5 15v9M18 18v3M21.5 16v7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <span class="marca-nome">Estudo em Voz</span>
+    </div>
+    <div class="topo-acoes">
+      <label class="botao botao-primario" for="arquivo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-5 5m5-5 5 5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Abrir PDF</span>
+      </label>
+      <input type="file" id="arquivo" accept="application/pdf,.pdf,.txt,text/plain" hidden>
+      <button class="botao-icone" id="abrirAjustes" type="button" aria-label="Ajustes de voz e leitura" title="Ajustes">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <section class="documento-info" aria-label="Documento aberto">
+    <div class="doc-linha">
+      <div class="doc-titulos">
+        <span class="etiqueta" id="docEtiqueta">Exemplo</span>
+        <h1 class="doc-titulo" id="docTitulo">Lei nº 8.213/1991 (trecho)</h1>
+      </div>
+      <div class="doc-ferramentas">
+        <label class="campo-busca" for="busca">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input type="search" id="busca" placeholder="Buscar: art. 18, carência…" autocomplete="off" enterkeyhint="search">
+        </label>
+        <select id="irPagina" aria-label="Ir para a página"></select>
+      </div>
+    </div>
+    <div class="progresso" aria-hidden="true"><div class="progresso-barra" id="progressoBarra"></div></div>
+    <div class="doc-status">
+      <span id="statusPosicao">Frase 1 de 1</span>
+      <span id="statusRestante"></span>
+    </div>
+  </section>
+
+  <main class="leitura" id="leitura" tabindex="-1" aria-live="off"></main>
+
+  <div class="carregando" id="carregando" hidden>
+    <div class="carregando-caixa">
+      <div class="carregando-texto" id="carregandoTexto">Lendo o PDF…</div>
+      <div class="progresso"><div class="progresso-barra" id="carregandoBarra"></div></div>
+    </div>
+  </div>
+
+  <div class="soltar" id="soltar" hidden><div>Solte o PDF para começar a ouvir</div></div>
+
+  <button class="voltar-trecho" id="voltarTrecho" type="button" hidden>Voltar ao trecho em leitura</button>
+
+  <footer class="player" aria-label="Controles de leitura">
+    <div class="player-frase" id="playerFrase" aria-live="polite"></div>
+    <div class="player-controles">
+      <button class="botao-icone" id="btParagrafoAnterior" type="button" aria-label="Parágrafo anterior" title="Parágrafo anterior (Shift+←)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M19 6l-9 6 9 6z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="botao-icone" id="btFraseAnterior" type="button" aria-label="Frase anterior" title="Frase anterior (←)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="botao-play" id="btPlay" type="button" aria-label="Ouvir" title="Ouvir / pausar (espaço)">
+        <svg class="ic-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>
+        <svg class="ic-pausa" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg>
+      </button>
+      <button class="botao-icone" id="btProximaFrase" type="button" aria-label="Próxima frase" title="Próxima frase (→)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="botao-icone" id="btProximoParagrafo" type="button" aria-label="Próximo parágrafo" title="Próximo parágrafo (Shift+→)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14M5 6l9 6-9 6z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <div class="player-extras">
+      <button class="chip" id="btRepetir" type="button" aria-pressed="false" title="Repetir a frase atual sem parar (R)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3l3 3-3 3M20 6H8a4 4 0 0 0-4 4v1M7 21l-3-3 3-3M4 18h12a4 4 0 0 0 4-4v-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Repetir frase</span>
+      </button>
+      <label class="chip chip-select" for="velocidadeRapida" title="Velocidade">
+        <select id="velocidadeRapida" aria-label="Velocidade"></select>
+      </label>
+      <span class="timer" id="timerInfo" hidden></span>
+    </div>
+  </footer>
+</div>
+
+<dialog class="ajustes" id="ajustes" aria-labelledby="ajustesTitulo">
+  <form method="dialog" class="ajustes-corpo" id="ajustesForm">
+    <div class="ajustes-topo">
+      <h2 id="ajustesTitulo">Ajustes</h2>
+      <button class="botao-icone" value="fechar" aria-label="Fechar ajustes">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <fieldset>
+      <legend>Voz</legend>
+      <label class="campo" for="voz">
+        <span>Voz</span>
+        <select id="voz"></select>
+      </label>
+      <p class="dica" id="vozDica"></p>
+      <label class="campo" for="velocidade">
+        <span>Velocidade <output id="velocidadeValor">1,0×</output></span>
+        <input type="range" id="velocidade" min="0.5" max="2.5" step="0.05" value="1">
+      </label>
+      <label class="campo" for="tom">
+        <span>Tom <output id="tomValor">1,0</output></span>
+        <input type="range" id="tom" min="0.5" max="1.5" step="0.05" value="1">
+      </label>
+      <button type="button" class="botao" id="testarVoz">Testar voz</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Pausas</legend>
+      <label class="campo" for="pausas">
+        <span>Pausa entre frases e parágrafos <output id="pausasValor">Normal</output></span>
+        <input type="range" id="pausas" min="0" max="3" step="0.25" value="1">
+      </label>
+      <p class="dica">Entre frases a pausa é curta; ao mudar de parágrafo, artigo ou inciso ela é maior; depois de títulos, maior ainda.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Leitura</legend>
+      <label class="alternar" for="legislacao">
+        <input type="checkbox" id="legislacao" checked>
+        <span><strong>Modo lei seca.</strong> Lê “I –” como “inciso 1”, “a)” como “alínea a” e “art. 5º, LXXIII” como “artigo quinto, inciso 73”.</span>
+      </label>
+      <label class="alternar" for="pularNotas">
+        <input type="checkbox" id="pularNotas" checked>
+        <span><strong>Pular notas de alteração.</strong> Não lê “(Redação dada pela Lei nº …)”, “(Incluído pela…)”, “(Vide…)”. As notas de revogação são lidas.</span>
+      </label>
+      <label class="alternar" for="removerCabecalhos">
+        <input type="checkbox" id="removerCabecalhos" checked>
+        <span><strong>Ignorar cabeçalhos, rodapés e números de página.</strong> Vale para o próximo PDF aberto.</span>
+      </label>
+      <label class="alternar" for="seguirTexto">
+        <input type="checkbox" id="seguirTexto" checked>
+        <span><strong>Rolar junto com a leitura.</strong></span>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Pronúncia</legend>
+      <label class="campo" for="dicionario">
+        <span>Dicionário: um termo por linha, no formato <code>termo = como falar</code></span>
+        <textarea id="dicionario" rows="7" spellcheck="false"></textarea>
+      </label>
+      <p class="dica">Use para siglas e palavras que a voz erra. Ex.: <code>RGPS = R G P S</code>, <code>LOAS = lôas</code>.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Temporizador</legend>
+      <label class="campo" for="timer">
+        <span>Parar de ler depois de</span>
+        <select id="timer">
+          <option value="0">Sem limite</option>
+          <option value="10">10 minutos</option>
+          <option value="20">20 minutos</option>
+          <option value="30">30 minutos</option>
+          <option value="45">45 minutos</option>
+          <option value="60">1 hora</option>
+          <option value="90">1 hora e meia</option>
+        </select>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Atalhos de teclado</legend>
+      <dl class="atalhos">
+        <dt><kbd>Espaço</kbd></dt><dd>ouvir / pausar</dd>
+        <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>frase anterior / próxima</dd>
+        <dt><kbd>Shift</kbd> + <kbd>←</kbd> <kbd>→</kbd></dt><dd>parágrafo anterior / próximo</dd>
+        <dt><kbd>R</kbd></dt><dd>repetir frase</dd>
+        <dt><kbd>+</kbd> <kbd>−</kbd></dt><dd>mais rápido / mais devagar</dd>
+      </dl>
+    </fieldset>
+  </form>
+</dialog>
+
+<div class="aviso" id="aviso" role="status" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="js/texto.js"></script>
+<script src="js/exemplo.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

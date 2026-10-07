@@ -1,0 +1,14 @@
+{
+  "name": "Estudo em Voz",
+  "short_name": "Estudo em Voz",
+  "description": "Leitor de PDF em voz alta para estudar para concursos.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f4f1",
+  "theme_color": "#0e5a4f",
+  "icons": [
+    { "src": "icons/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "estudo-em-voz",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Leitor de PDF em voz alta para estudar para concursos",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "build:artifact": "node scripts/build-artifact.mjs",
+    "start": "npx http-server -c-1 -p 8080 ."
+  },
+  "devDependencies": {
+    "pdfjs-dist": "3.11.174"
+  }
+}
