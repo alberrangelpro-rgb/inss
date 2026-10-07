@@ -14,22 +14,22 @@ Lê **qualquer** texto que o app mandar (não é uma biblioteca fixa).
   navegador bloqueia chamar um servidor http). O jeito mais fácil, sem
   domínio nem configurar certificado, é o **Cloudflare Tunnel** (abaixo).
 
-## Subir o servidor
+## Testar no seu computador (jeito mais fácil)
+
+Precisa só do **Docker Desktop** instalado e aberto. O compose já sobe, junto,
+um endereço **https temporário e grátis** (Cloudflare quick tunnel) — sem conta.
 
 ```bash
 cd server
-docker compose up -d --build
+docker compose up -d --build        # na 1ª vez baixa as vozes (uns 60 MB)
+docker compose logs tunnel          # procure a linha https://algo.trycloudflare.com
 ```
 
-Na primeira vez ele baixa as vozes pt-BR (uns 60 MB) e sobe na porta 8080.
-Teste local:
+Esse endereço `https://algo.trycloudflare.com` é o que vai no app. Enquanto o
+`docker compose` estiver rodando, o endereço funciona (ele muda se você
+reiniciar). Para testar localmente antes: abra `http://localhost:8080/saude`.
 
-```bash
-curl http://localhost:8080/saude
-# deve listar as vozes: pt_BR-faber-medium, pt_BR-edresson-low
-curl -X POST http://localhost:8080/tts -H 'Content-Type: application/json' \
-  -d '{"texto":"Artigo primeiro. A Previdência Social tem por fim assegurar."}' --output teste.mp3
-```
+Para parar tudo: `docker compose down`.
 
 ### Proteger com um token (recomendado)
 

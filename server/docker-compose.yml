@@ -1,26 +1,26 @@
-# Sobe o servidor de voz. Veja o README.md para colocar HTTPS (obrigatório
-# para o app, que roda em https). O jeito mais fácil é o Cloudflare Tunnel.
+# Sobe o servidor de voz JÁ com um endereço HTTPS temporário, de graça e sem
+# conta (Cloudflare "quick tunnel"). Depois de subir, veja o endereço com:
+#   docker compose logs tunnel
+# Procure a linha com https://algo.trycloudflare.com  — é o que vai no app.
 services:
   voz:
     build: .
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8080:8080"          # para testar em http://localhost:8080/saude
     environment:
-      # Deixe vazio para uso pessoal, ou defina um token para proteger o acesso.
+      # Deixe vazio para testar. Para proteger, defina: TOKEN=uma-senha-longa
       - TOKEN=${TOKEN:-}
       - VOZ_PADRAO=pt_BR-faber-medium
+      - MAX_CONCORRENTE=${MAX_CONCORRENTE:-2}
     volumes:
-      - ./vozes:/vozes   # modelos de voz (baixados uma vez)
-      - ./cache:/cache   # áudios já gerados
+      - ./vozes:/vozes        # modelos de voz (baixados uma vez)
+      - ./cache:/cache        # áudios já gerados
 
-  # HTTPS grátis, sem domínio e sem abrir portas, via Cloudflare Tunnel.
-  # 1) crie o túnel no painel da Cloudflare e copie o token;
-  # 2) rode:  TUNNEL_TOKEN=xxxxx docker compose --profile tunnel up -d
+  # HTTPS grátis e temporário, sem domínio e sem conta.
   tunnel:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN:-}
-    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate --url http://voz:8080
     depends_on:
       - voz
