@@ -32,6 +32,10 @@
 
   const config = Object.assign({
     voz: '',
+    vozModo: 'aparelho',      // 'aparelho' (voz do dispositivo) ou 'servidor' (voz premium)
+    servidorUrl: '',
+    servidorToken: '',
+    servidorVoz: '',
     velocidade: 1,
     tom: 1,
     pausas: 1,
@@ -60,7 +64,14 @@
     rolagemManual: 0,
     wakeLock: null,
     vozes: [],
+    audio: typeof Audio !== 'undefined' ? new Audio() : null,
+    audioDesbloqueado: false,
+    ouvindo: false,
   };
+  if (estado.audio) { estado.audio.preload = 'auto'; estado.audio.playsInline = true; }
+
+  // mp3 silencioso (0,05 s): tocado no primeiro gesto para liberar o áudio no iOS.
+  const SILENCIO = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA//NwwAAAAAAAAAAAAEluZm8AAAAPAAAABAAAAR4Aurq6urq6urq6urq6urq6urq6urq6urq60dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0ejo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Oj/////////////////////////////////AAAAAExhdmM2MC4zMQAAAAAAAAAAAAAAACQCcQAAAAAAAAEeqyLcVwAAAAAAAAAAAAAAAAD/8xDEAAAAA0gAAAAATEFNRTMuMTAwVVVVVf/zEMQNAAADSAAAAABVVVVVVVVVVVVVVVVV//MQxBoAAANIAAAAAFVVVVVVVVVVVVVVVVX/8xDEJwAAA0gAAAAAVVVVVVVVVVVVVVVVVQ==';
 
   // ------------------------------------------------------------ avisos
 
@@ -275,17 +286,82 @@
     return { legislacao: config.legislacao, pularNotas: config.pularNotas, dicionario: estado.dicionario };
   }
 
+  const clampRate = (v) => Math.min(3, Math.max(0.5, v));
+  const modoServidorAtivo = () => config.vozModo === 'servidor' && !!(config.servidorUrl || '').trim();
+  const paramsServidor = () => ({ url: config.servidorUrl, token: config.servidorToken || '', voz: config.servidorVoz || '' });
+
+  function desbloquearAudio() {
+    if (!estado.audio || estado.audioDesbloqueado) return;
+    estado.audioDesbloqueado = true;
+    try {
+      estado.audio.src = SILENCIO;
+      const p = estado.audio.play();
+      if (p && p.then) p.then(() => { try { estado.audio.pause(); } catch (e) {} }).catch(() => {});
+    } catch (e) { /* ignora */ }
+  }
+
+  function pararAudioAtual() {
+    if (!estado.audio) return;
+    try { estado.audio.pause(); } catch (e) {}
+    estado.audio.onended = null;
+    estado.audio.onerror = null;
+  }
+
   function falarAtual() {
     const frase = estado.doc.frases[estado.pos];
     if (!frase) return parar();
     marcarAtual(false);
     gravarPosicao();
+    pararAudioAtual();
     const passo = ++estado.passo;
     const texto = Texto.falar(frase.texto, opcoesFala());
     if (!texto || !/[\p{L}\p{N}]/u.test(texto)) {
       estado.esperandoFala = false;
       return depoisDaFrase(passo);
     }
+    if (modoServidorAtivo()) falarServidor(texto, passo);
+    else falarDispositivo(texto, passo);
+  }
+
+  async function falarServidor(texto, passo) {
+    estado.esperandoFala = false; // o vigia do Chrome é só para a voz do aparelho
+    const a = estado.audio;
+    if (!a) return falarDispositivo(texto, passo);
+    try {
+      const url = await VozServidor.sintetizar(texto, paramsServidor());
+      if (passo !== estado.passo || !estado.tocando) return;
+      a.src = url;
+      a.playbackRate = clampRate(config.velocidade);
+      a.onended = () => depoisDaFrase(passo);
+      a.onerror = () => { if (passo === estado.passo) depoisDaFrase(passo); };
+      await a.play();
+      prefetchProxima();
+    } catch (err) {
+      if (passo !== estado.passo) return;
+      tratarErroServidor(err);
+    }
+  }
+
+  function prefetchProxima() {
+    if (!modoServidorAtivo()) return;
+    const prox = estado.doc.frases[estado.pos + 1];
+    if (!prox) return;
+    const t = Texto.falar(prox.texto, opcoesFala());
+    if (t) VozServidor.sintetizar(t, paramsServidor()).catch(() => {});
+  }
+
+  function tratarErroServidor(err) {
+    parar();
+    const s = err && err.status;
+    let msg;
+    if (err && err.rede) msg = 'Não consegui falar com o servidor de voz. Confira se ele está ligado e se o endereço (https) está certo nos ajustes.';
+    else if (s === 401 || s === 403) msg = 'O servidor de voz recusou o acesso. Confira o token nos ajustes.';
+    else if (s === 429 || s === 503) msg = 'O servidor de voz está ocupado. Tente de novo em instantes.';
+    else msg = 'Erro no servidor de voz. Dá para usar a voz do aparelho nos ajustes enquanto isso.';
+    avisar(msg, 6000);
+  }
+
+  function falarDispositivo(texto, passo) {
     const u = new SpeechSynthesisUtterance(texto);
     const voz = vozAtual();
     if (voz) u.voice = voz;
@@ -344,9 +420,14 @@
   }
 
   function tocar() {
-    if (!fala) { avisar('Este navegador não tem leitura em voz. Use Chrome, Edge ou Safari atualizados.', 6000); return; }
+    if (config.vozModo === 'servidor' && !(config.servidorUrl || '').trim()) {
+      avisar('Configure o endereço do servidor de voz nos ajustes, ou use a voz do aparelho.', 6000);
+      return;
+    }
+    if (!fala && !modoServidorAtivo()) { avisar('Este navegador não tem leitura em voz. Use Chrome, Edge ou Safari atualizados.', 6000); return; }
     if (!estado.doc || !estado.doc.frases.length) return;
-    fala.cancel();
+    desbloquearAudio();
+    if (fala) fala.cancel();
     estado.tocando = true;
     document.body.classList.add('tocando');
     $('btPlay').setAttribute('aria-label', 'Pausar');
@@ -361,6 +442,7 @@
     estado.esperandoFala = false;
     estado.fimTimer = 0;
     clearTimeout(estado.temporizador);
+    pararAudioAtual();
     if (fala) fala.cancel();
     document.body.classList.remove('tocando');
     $('btPlay').setAttribute('aria-label', 'Ouvir');
@@ -377,7 +459,8 @@
     if (estado.tocando) {
       estado.passo++;
       clearTimeout(estado.temporizador);
-      fala.cancel();
+      pararAudioAtual();
+      if (fala) fala.cancel();
       setTimeout(() => { if (estado.tocando) falarAtual(); }, 60);
     } else {
       marcarAtual(false);
@@ -401,6 +484,7 @@
 
   // O Chrome às vezes não dispara "onend"; este vigia destrava a leitura.
   setInterval(() => {
+    if (modoServidorAtivo()) return;
     if (!estado.tocando || !estado.esperandoFala || !fala) return;
     const decorrido = Date.now() - estado.inicioFala;
     const passo = estado.passo;
@@ -558,7 +642,29 @@
     $('seguirTexto').checked = config.seguirTexto;
     $('dicionario').value = config.dicionario;
     $('timer').value = String(config.timer);
+    $('vozModo').value = config.vozModo;
+    $('servidorUrl').value = config.servidorUrl || '';
+    $('servidorToken').value = config.servidorToken || '';
+    preencherVozesServidor(config.servidorVoz ? [{ id: config.servidorVoz, nome: config.servidorVoz }] : []);
+    atualizarBlocosVoz();
     atualizarRotulos();
+  }
+
+  function atualizarBlocosVoz() {
+    const online = config.vozModo === 'servidor';
+    $('blocoAparelho').hidden = online;
+    $('blocoServidor').hidden = !online;
+    $('campoTom').hidden = online; // o tom não se aplica à voz do servidor
+  }
+
+  function preencherVozesServidor(lista) {
+    const sel = $('servidorVoz');
+    const atual = config.servidorVoz;
+    const itens = (lista && lista.length) ? lista : (atual ? [{ id: atual, nome: atual }] : []);
+    sel.innerHTML = itens.length
+      ? itens.map((v) => `<option value="${v.id}">${v.nome || v.id}</option>`).join('')
+      : '<option value="">(teste a conexão para listar as vozes)</option>';
+    if (atual && itens.some((v) => v.id === atual)) sel.value = atual;
   }
 
   function atualizarRotulos() {
@@ -577,7 +683,10 @@
     $('velocidade').value = config.velocidade;
     atualizarRotulos();
     atualizarRestante();
-    if (estado.tocando) irPara(estado.pos); // recomeça a frase na nova velocidade
+    if (estado.tocando) {
+      if (modoServidorAtivo() && estado.audio) estado.audio.playbackRate = clampRate(config.velocidade);
+      else irPara(estado.pos); // recomeça a frase na nova velocidade
+    }
   }
 
   // ------------------------------------------------------------ eventos
@@ -642,6 +751,44 @@
     salvarConfig();
     if (estado.tocando) irPara(estado.pos);
   });
+  $('vozModo').addEventListener('change', (e) => {
+    const tocava = estado.tocando;
+    parar();
+    config.vozModo = e.target.value;
+    salvarConfig();
+    atualizarBlocosVoz();
+    atualizarRestante();
+    if (tocava) tocar();
+  });
+  $('servidorUrl').addEventListener('change', (e) => { config.servidorUrl = e.target.value.trim(); salvarConfig(); });
+  $('servidorToken').addEventListener('change', (e) => { config.servidorToken = e.target.value; salvarConfig(); });
+  $('servidorVoz').addEventListener('change', (e) => {
+    config.servidorVoz = e.target.value;
+    salvarConfig();
+    if (estado.tocando && modoServidorAtivo()) irPara(estado.pos);
+  });
+  $('testarConexao').addEventListener('click', async () => {
+    config.servidorUrl = $('servidorUrl').value.trim();
+    config.servidorToken = $('servidorToken').value;
+    salvarConfig();
+    if (!config.servidorUrl) { avisar('Preencha o endereço do servidor primeiro.'); return; }
+    $('servidorDica').textContent = 'Conectando…';
+    try {
+      const vozes = await VozServidor.vozes(paramsServidor());
+      if (!vozes.length) { $('servidorDica').textContent = 'Conectou, mas o servidor não tem nenhuma voz instalada.'; return; }
+      preencherVozesServidor(vozes);
+      if (!config.servidorVoz || !vozes.some((v) => v.id === config.servidorVoz)) {
+        config.servidorVoz = vozes[0].id;
+        $('servidorVoz').value = config.servidorVoz;
+        salvarConfig();
+      }
+      $('servidorDica').textContent = `Conectado. ${vozes.length} voz(es) disponível(is).`;
+    } catch (err) {
+      $('servidorDica').textContent = err && err.rede
+        ? 'Não conectou. Confira o endereço (precisa ser https) e se o servidor está ligado.'
+        : `Não conectou (${(err && err.status) || 'erro'}). Confira o endereço e o token.`;
+    }
+  });
   $('velocidade').addEventListener('input', (e) => { config.velocidade = Number(e.target.value); atualizarRotulos(); });
   $('velocidade').addEventListener('change', (e) => mudarVelocidade(Number(e.target.value)));
   $('tom').addEventListener('input', (e) => { config.tom = Number(e.target.value); atualizarRotulos(); salvarConfig(); });
@@ -659,11 +806,24 @@
     salvarConfig();
     estado.fimTimer = estado.tocando && config.timer ? Date.now() + config.timer * 60000 : 0;
   });
-  $('testarVoz').addEventListener('click', () => {
-    if (!fala) return;
+  $('testarVoz').addEventListener('click', async () => {
     parar();
     const amostra = 'Art. 5º, LXXIII, da CF/88: qualquer cidadão é parte legítima para propor ação popular. § 1º O INSS concederá o benefício, conforme a Lei nº 8.213/91.';
-    const u = new SpeechSynthesisUtterance(Texto.falar(amostra, opcoesFala()));
+    const texto = Texto.falar(amostra, opcoesFala());
+    if (modoServidorAtivo()) {
+      desbloquearAudio();
+      try {
+        const url = await VozServidor.sintetizar(texto, paramsServidor());
+        estado.audio.src = url;
+        estado.audio.playbackRate = clampRate(config.velocidade);
+        estado.audio.onended = null;
+        estado.audio.onerror = null;
+        await estado.audio.play();
+      } catch (err) { tratarErroServidor(err); }
+      return;
+    }
+    if (!fala) return;
+    const u = new SpeechSynthesisUtterance(texto);
     const voz = vozAtual();
     if (voz) u.voice = voz;
     u.lang = voz ? voz.lang : 'pt-BR';
@@ -672,6 +832,96 @@
     estado.utterance = u;
     fala.speak(u);
   });
+
+  // ------------------------------------------------------------ índice
+
+  function resumoTexto(t, max) {
+    t = t.replace(/\s+/g, ' ').trim();
+    return t.length > max ? t.slice(0, max - 1).trimEnd() + '…' : t;
+  }
+
+  function abrirDialog(d) {
+    if (typeof d.showModal === 'function') { if (!d.open) d.showModal(); } else d.setAttribute('open', '');
+  }
+
+  function abrirIndice() {
+    if (!estado.doc) return;
+    const lista = $('indiceLista');
+    lista.innerHTML = '';
+    const itens = estado.doc.paragrafos.filter((p) => (p.tipo === 'titulo' || p.tipo === 'artigo') && p.frases.length);
+    if (!itens.length) {
+      const p = document.createElement('p');
+      p.className = 'dica';
+      p.textContent = 'Este documento não tem títulos ou artigos destacados para listar.';
+      lista.appendChild(p);
+    }
+    for (const it of itens) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'indice-item indice-' + it.tipo;
+      b.textContent = resumoTexto(it.texto, it.tipo === 'titulo' ? 70 : 90);
+      b.addEventListener('click', () => {
+        $('indice').close();
+        irPara(it.primeira);
+        const el = spanDaFrase(it.primeira);
+        if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+      lista.appendChild(b);
+    }
+    abrirDialog($('indice'));
+  }
+
+  $('btIndice').addEventListener('click', abrirIndice);
+  $('fecharIndice').addEventListener('click', () => $('indice').close());
+  $('indice').addEventListener('click', (e) => { if (e.target === $('indice')) $('indice').close(); });
+
+  // ------------------------------------------------------------ comandos de voz
+
+  const ACOES_COMANDO = {
+    parar: () => parar(),
+    tocar: () => { if (!estado.tocando) tocar(); },
+    repetir: () => irPara(estado.pos, { tocar: true }),
+    proxima: () => irPara(estado.pos + 1, { tocar: estado.tocando }),
+    anterior: () => irPara(estado.pos - 1, { tocar: estado.tocando }),
+    proximoParagrafo: () => paragrafoRelativo(1),
+    paragrafoAnterior: () => paragrafoRelativo(-1),
+    inicio: () => irPara(0, { tocar: true }),
+    maisRapido: () => mudarVelocidade(config.velocidade + 0.1),
+    maisDevagar: () => mudarVelocidade(config.velocidade - 0.1),
+  };
+  const ROTULO_COMANDO = {
+    parar: 'pausar', tocar: 'continuar', repetir: 'repetir frase', proxima: 'próxima frase',
+    anterior: 'frase anterior', proximoParagrafo: 'próximo trecho', paragrafoAnterior: 'trecho anterior',
+    inicio: 'começar do início', maisRapido: 'mais rápido', maisDevagar: 'mais devagar',
+  };
+
+  function pararComandos() {
+    estado.ouvindo = false;
+    Comandos.parar();
+    $('btComandos').setAttribute('aria-pressed', 'false');
+  }
+
+  function alternarComandos() {
+    if (!Comandos.suportado()) {
+      avisar('Este navegador não reconhece comandos de voz. Funciona melhor no Chrome (Android/computador).', 6000);
+      return;
+    }
+    if (estado.ouvindo) { pararComandos(); avisar('Comandos de voz desligados.', 1800); return; }
+    estado.ouvindo = true;
+    $('btComandos').setAttribute('aria-pressed', 'true');
+    Comandos.iniciar({
+      onInicio: () => avisar('Ouvindo. Diga: pausar, continuar, repetir, próxima, voltar, próximo artigo, começar do início, mais rápido, mais devagar.', 5000),
+      onComando: (id) => { const f = ACOES_COMANDO[id]; if (f) { f(); avisar('🎙️ ' + (ROTULO_COMANDO[id] || id), 1400); } },
+      onErro: (tipo) => {
+        if (tipo === 'not-allowed' || tipo === 'service-not-allowed') { avisar('Preciso da permissão do microfone para os comandos de voz.', 5000); pararComandos(); }
+        else if (tipo === 'audio-capture') { avisar('Não achei um microfone disponível.', 4000); pararComandos(); }
+        else if (tipo === 'sem-suporte') { pararComandos(); }
+      },
+      onFim: () => { $('btComandos').setAttribute('aria-pressed', 'false'); },
+    });
+  }
+
+  $('btComandos').addEventListener('click', alternarComandos);
 
   document.addEventListener('keydown', (e) => {
     const alvo = e.target;

@@ -406,6 +406,72 @@ kbd { padding: 0.05rem 0.35rem; border: 1px solid var(--linha); border-bottom-wi
 .atalhos dd { margin: 0; color: var(--suave); }
 .ajustes .botao { justify-self: start; }
 
+/* ---------- voz premium, índice e comandos */
+#blocoAparelho, #blocoServidor { display: grid; gap: 0.7rem; }
+.campo input[type="url"], .campo input[type="password"], .campo input[type="text"] {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  background: var(--papel);
+  color: var(--tinta);
+}
+.opcional { font-weight: 400; color: var(--suave); }
+.link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--acento);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.ferramenta-botao {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--linha);
+  border-radius: 999px;
+  background: var(--folha);
+  color: var(--tinta);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ferramenta-botao svg { width: 1rem; height: 1rem; }
+.ferramenta-botao:hover { border-color: var(--acento); }
+.chip[aria-pressed="true"] svg { animation: pulso 1.3s ease-in-out infinite; }
+@keyframes pulso { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+.indice .ajustes-corpo { gap: 0.6rem; }
+.indice-lista { display: grid; gap: 0.2rem; max-height: 60vh; overflow-y: auto; }
+.indice-item {
+  text-align: left;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tinta);
+  font-family: var(--f-leitura);
+  font-size: 1rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.indice-item:hover { background: var(--acento-leve); }
+.indice-item.indice-titulo {
+  font-family: var(--f-ui);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--acento);
+  margin-top: 0.4rem;
+}
+.indice-item.indice-artigo { padding-left: 1rem; }
+
 @media (max-width: 520px) {
   :root { --t-leitura: 1.08rem; }
   .doc-titulo { font-size: 1.2rem; }

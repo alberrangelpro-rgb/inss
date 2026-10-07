@@ -51,6 +51,10 @@
           <input type="search" id="busca" placeholder="Buscar: art. 18, carência…" autocomplete="off" enterkeyhint="search">
         </label>
         <select id="irPagina" aria-label="Ir para a página"></select>
+        <button class="ferramenta-botao" id="btIndice" type="button" aria-label="Índice de artigos e títulos" title="Índice">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4" cy="6" r="1.4" fill="currentColor"/><circle cx="4" cy="12" r="1.4" fill="currentColor"/><circle cx="4" cy="18" r="1.4" fill="currentColor"/></svg>
+          <span>Índice</span>
+        </button>
       </div>
     </div>
     <div class="progresso" aria-hidden="true"><div class="progresso-barra" id="progressoBarra"></div></div>
@@ -101,6 +105,10 @@
       <label class="chip chip-select" for="velocidadeRapida" title="Velocidade">
         <select id="velocidadeRapida" aria-label="Velocidade"></select>
       </label>
+      <button class="chip" id="btComandos" type="button" aria-pressed="false" title="Comandos de voz: diga pausar, repetir, próxima, começar do início">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 11a6 6 0 0 0 12 0M12 17v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>Comandos</span>
+      </button>
       <span class="timer" id="timerInfo" hidden></span>
     </div>
   </footer>
@@ -117,16 +125,43 @@
 
     <fieldset>
       <legend>Voz</legend>
-      <label class="campo" for="voz">
-        <span>Voz</span>
-        <select id="voz"></select>
+      <label class="campo" for="vozModo">
+        <span>Tipo de voz</span>
+        <select id="vozModo">
+          <option value="aparelho">Voz do aparelho (grátis, offline)</option>
+          <option value="servidor">Voz premium (servidor próprio)</option>
+        </select>
       </label>
-      <p class="dica" id="vozDica"></p>
+
+      <div id="blocoAparelho">
+        <label class="campo" for="voz">
+          <span>Voz</span>
+          <select id="voz"></select>
+        </label>
+        <p class="dica" id="vozDica"></p>
+      </div>
+
+      <div id="blocoServidor" hidden>
+        <label class="campo" for="servidorUrl">
+          <span>Endereço do servidor</span>
+          <input type="url" id="servidorUrl" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://seu-servidor…">
+        </label>
+        <label class="campo" for="servidorToken">
+          <span>Token <span class="opcional">(opcional)</span></span>
+          <input type="password" id="servidorToken" autocomplete="off" spellcheck="false" placeholder="deixe vazio se não usar">
+        </label>
+        <div class="campo">
+          <span>Voz <button type="button" class="link" id="testarConexao">testar conexão</button></span>
+          <select id="servidorVoz"></select>
+        </div>
+        <p class="dica" id="servidorDica">Aponte para o seu servidor de voz (endereço https). Ele fica salvo só neste aparelho.</p>
+      </div>
+
       <label class="campo" for="velocidade">
         <span>Velocidade <output id="velocidadeValor">1,0×</output></span>
         <input type="range" id="velocidade" min="0.5" max="2.5" step="0.05" value="1">
       </label>
-      <label class="campo" for="tom">
+      <label class="campo" for="tom" id="campoTom">
         <span>Tom <output id="tomValor">1,0</output></span>
         <input type="range" id="tom" min="0.5" max="1.5" step="0.05" value="1">
       </label>
@@ -200,12 +235,26 @@
   </form>
 </dialog>
 
+<dialog class="ajustes indice" id="indice" aria-labelledby="indiceTitulo">
+  <div class="ajustes-corpo">
+    <div class="ajustes-topo">
+      <h2 id="indiceTitulo">Índice</h2>
+      <button class="botao-icone" type="button" id="fecharIndice" aria-label="Fechar índice">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="indice-lista" id="indiceLista"></div>
+  </div>
+</dialog>
+
 <div class="aviso" id="aviso" role="status" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
 <script src="js/texto.js"></script>
 <script src="js/exemplo.js"></script>
+<script src="js/voz-servidor.js"></script>
+<script src="js/comandos.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
