@@ -75,13 +75,27 @@
 
   // ------------------------------------------------------------ vozes
 
+  const ehAppleIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  // Qualidade da voz: "aprimorada"/premium e neural soam bem mais naturais que
+  // a "compacta" padrão. Detecta pelo identificador (voiceURI) e pelo nome.
+  function ehAprimorada(v) {
+    return /premium|enhanced|neural|natural|wavenet/i.test(v.voiceURI + ' ' + v.name);
+  }
+  function ehCompacta(v) {
+    return /compact/i.test(v.voiceURI) && !ehAprimorada(v);
+  }
+
   function pontuarVoz(v) {
     let p = 0;
     if (/^pt[-_]BR/i.test(v.lang)) p += 10;
     else if (/^pt/i.test(v.lang)) p += 5;
-    if (/natural|neural|online/i.test(v.name)) p += 4;
-    if (/google/i.test(v.name)) p += 3;
-    if (/francisca|thalita|antonio|luciana|felipe/i.test(v.name)) p += 1;
+    if (ehAprimorada(v)) p += 6;
+    if (/online/i.test(v.name) || !v.localService) p += 3;
+    if (/google/i.test(v.name)) p += 2;
+    if (/francisca|thalita|antonio|luciana|felipe|joana|catarina/i.test(v.name)) p += 1;
+    if (ehCompacta(v)) p -= 3;
     return p;
   }
 
@@ -101,7 +115,8 @@
       for (const v of lista) {
         const o = document.createElement('option');
         o.value = v.voiceURI;
-        o.textContent = `${v.name} (${v.lang})${v.localService ? '' : ' · online'}`;
+        const marca = ehAprimorada(v) ? ' ✨ aprimorada' : (ehCompacta(v) ? ' · compacta' : (v.localService ? '' : ' · online'));
+        o.textContent = `${v.name} (${v.lang})${marca}`;
         g.appendChild(o);
       }
       sel.appendChild(g);
@@ -110,9 +125,23 @@
     grupo('Outros idiomas', outras);
     if (!todas.some((v) => v.voiceURI === config.voz)) config.voz = (pt[0] || todas[0]).voiceURI;
     sel.value = config.voz;
-    $('vozDica').textContent = pt.length
-      ? (pt.some((v) => /natural|neural|online/i.test(v.name)) ? '' : 'Dica: no Microsoft Edge aparecem vozes “Natural” em português, bem mais fluidas.')
-      : 'Nenhuma voz em português foi encontrada. No Android, instale “Serviços de fala do Google” e o idioma Português (Brasil). No Windows, adicione a voz em Configurações › Hora e idioma › Fala. O Microsoft Edge já traz vozes naturais em português.';
+    $('vozDica').innerHTML = dicaDeVoz(pt);
+  }
+
+  function dicaDeVoz(pt) {
+    const temAprimorada = pt.some(ehAprimorada);
+    if (!pt.length) {
+      return ehAppleIOS
+        ? 'Nenhuma voz em português encontrada. Em <strong>Ajustes › Acessibilidade › Conteúdo Falado › Vozes › Português</strong>, baixe a voz <strong>Luciana</strong> ou <strong>Felipe</strong>.'
+        : 'Nenhuma voz em português foi encontrada. No Android, instale “Serviços de fala do Google” e o idioma Português (Brasil). No Windows, adicione a voz em Configurações › Hora e idioma › Fala.';
+    }
+    if (temAprimorada) {
+      return 'Para a leitura mais natural, escolha acima uma voz marcada com <strong>✨ aprimorada</strong>.';
+    }
+    if (ehAppleIOS) {
+      return 'A voz está na versão <strong>compacta</strong>, por isso soa robótica. Para a versão natural (grátis): <strong>Ajustes › Acessibilidade › Conteúdo Falado › Vozes › Português</strong>, toque em <strong>Luciana</strong> (ou Felipe) e baixe a opção <strong>Aprimorada</strong> ou <strong>Premium</strong>. Depois volte aqui e selecione essa voz.';
+    }
+    return 'Dica: no computador, o Microsoft Edge traz vozes “Natural” em português, bem mais fluidas. No Android, instale os “Serviços de fala do Google”.';
   }
 
   const vozAtual = () => estado.vozes.find((v) => v.voiceURI === config.voz) || null;

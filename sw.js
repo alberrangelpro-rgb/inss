@@ -1,5 +1,5 @@
 // Guarda o app para abrir mesmo sem internet (a voz depende do aparelho).
-const CACHE = 'estudo-em-voz-v2';
+const CACHE = 'estudo-em-voz-v3';
 const ARQUIVOS = [
   './', 'index.html', 'css/style.css', 'js/texto.js', 'js/exemplo.js', 'js/app.js', 'manifest.webmanifest',
   'icons/icone.svg', 'icons/icone-192.png', 'icons/icone-512.png', 'icons/apple-touch-icon.png',
