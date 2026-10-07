@@ -14,7 +14,9 @@ html = html
   .replace(/<\/?body>\s*/gi, '')
   .replace(/<meta charset[^>]*>\s*/i, '')
   .replace(/<meta name="viewport"[^>]*>\s*/i, '')
-  .replace(/<link rel="(manifest|icon)"[^>]*>\s*/gi, '')
+  .replace(/<link rel="(manifest|icon|apple-touch-icon)"[^>]*>\s*/gi, '')
+  .replace(/<meta name="(apple-mobile-web-app-[\w-]+|mobile-web-app-capable)"[^>]*>\s*/gi, '')
+  .replace(/<!-- iPad[^>]*-->\s*/g, '')
   .replace(/<link rel="stylesheet" href="css\/style\.css">/, () => `<style>\n${ler('css/style.css')}</style>`)
   .replace(/<script src="(js\/[\w.-]+\.js)"><\/script>/g, (m, f) => `<script>\n${ler(f).replace(/<\/script/gi, '<\\/script')}</script>`);
 
